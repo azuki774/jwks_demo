@@ -1,14 +1,21 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
-	"fmt"
+	"log/slog"
+	"os"
 
+	"github.com/jwks_demo/internal/fileoperator"
+	"github.com/jwks_demo/internal/issue"
 	"github.com/spf13/cobra"
 )
+
+// 秘密鍵作成
+// openssl genpkey -algorithm ed25519 -out ed25519.pem
+// 秘密鍵から公開鍵を作成
+// openssl pkey -in ed25519.pem -pubout -out ed25519_pub.pem
+
+const testKeyPath = "files/private/test_ed25519.pem"
+const testKID = "key-001"
 
 // issueCmd represents the issue command
 var issueCmd = &cobra.Command{
@@ -21,7 +28,13 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("issue called")
+		slog.Info("issue called")
+		f := fileoperator.NewFileOperator()
+		issuer := issue.NewIssuer(f)
+		if err := issuer.Issue(testKeyPath, testKID); err != nil {
+			slog.Error("failed to issue", "error", err)
+			os.Exit(1)
+		}
 	},
 }
 

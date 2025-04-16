@@ -61,7 +61,7 @@ func (i *Issuer) Issue(privateKeyPath string, kid string) error {
 		"iss": "jwks_demo_issuer",
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// ヘッダーに Key ID (kid) を設定
 	if kid != "" {
@@ -79,26 +79,3 @@ func (i *Issuer) Issue(privateKeyPath string, kid string) error {
 	slog.Info("successfully issued JWT", "kid", kid, "token", signedToken)
 	return nil
 }
-
-// publicKeyLine, err := i.FileOperator.LoadTxtFile(publicKeyPath)
-// if err != nil {
-// 	return err
-// }
-
-// // ParseAuthorizedKey を使って公開鍵の行をパース
-// // この関数は "ssh-ed25519 BASE64_KEY optional_comment" という形式を扱えます。
-// // また、行頭のオプション (例: "command=\"...\" ssh-ed25519 ...") も処理できます。
-// publicKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(publicKeyLine))
-// if err != nil {
-// 	slog.Error("failed to parse public key", "error", err)
-// 	return err
-// }
-
-// // パースされた鍵が Ed25519 かどうかを確認
-// if publicKey.Type() != ssh.KeyAlgoED25519 {
-// 	slog.Error("this is not an Ed25519 key")
-// 	return fmt.Errorf("this is not an Ed25519 key")
-// }
-
-// openssl genpkey -algorithm ed25519 -out ed25519.pem
-// openssl pkey -in ed25519.pem -pubout -out ed25519_pub.pem

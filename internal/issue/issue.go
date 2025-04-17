@@ -61,7 +61,7 @@ func (i *Issuer) Issue(privateKeyPath string, kid string) error {
 		"iss": "jwks_demo_issuer",
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
 
 	// ヘッダーに Key ID (kid) を設定
 	if kid != "" {

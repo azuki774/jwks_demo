@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -56,14 +58,21 @@ func (s *Server) RegistPublicKey() error {
 	}
 
 	for _, p := range pubPath {
-		pubKey, err := s.FileOperator.LoadTxtFile(s.PublicKeyDir + "/" + p)
+		pubKeyLine, err := s.FileOperator.LoadTxtFile(s.PublicKeyDir + "/" + p)
 		if err != nil {
 			slog.Error("failed to load public key file", "error", err)
 			return err
 		}
-		key := NewEd25519key("key-001", string(pubKey))
+
+		keyPub, err := parsePemPublicKeyLine(string(pubKeyLine))
+		if err != nil {
+			return err
+		}
+
+		// base64 に変換して登録
+		key := NewEd25519key("key-001", base64.RawURLEncoding.EncodeToString(keyPub))
 		s.Keys = append(s.Keys, key)
-		slog.Info("loaded public key", "file_name", p, "key_length", len(pubKey))
+		slog.Info("loaded public key", "file_name", p, "key_length", len(key.X))
 	}
 
 	return nil
@@ -80,7 +89,8 @@ func (s *Server) Start() error {
 
 	// サーバーを起動
 	r := mux.NewRouter()
-	r.HandleFunc("/", HomeHandler)
+	r.HandleFunc("/", homeHandler)
+	r.HandleFunc("/.well-known/jwks.json", s.jwksHandler).Methods("GET")
 
 	srv := &http.Server{
 		Handler:      r,
@@ -114,6 +124,25 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func HomeHandler(w http.ResponseWriter, r *http.Request) {
+func homeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ready\n"))
+}
+
+func (s *Server) jwksHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := Response{
+		Keys: []Key{},
+	}
+	for _, key := range s.Keys {
+		response.Keys = append(response.Keys, key)
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		slog.Error("failed to encode response", "error", err)
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
 }

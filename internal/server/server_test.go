@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -35,6 +36,73 @@ func TesNewEd25519key(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewEd25519key(tt.args.kid, tt.args.x); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEd25519key() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestServer_RegistPublicKey(t *testing.T) {
+	type fields struct {
+		FileOperator FileOperator
+		PublicKeyDir string
+		Port         int
+		Keys         []Key
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "normal",
+			fields: fields{
+				FileOperator: &MockFileOperator{
+					ErrLoadTxtFile:  nil,
+					ErrGetFileNames: nil,
+				},
+				PublicKeyDir: "files/public",
+				Port:         8080,
+				Keys:         []Key{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "error loadTextFile",
+			fields: fields{
+				FileOperator: &MockFileOperator{
+					ErrLoadTxtFile:  errors.New("error"),
+					ErrGetFileNames: nil,
+				},
+				PublicKeyDir: "files/public",
+				Port:         8080,
+				Keys:         []Key{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "error getFileNames",
+			fields: fields{
+				FileOperator: &MockFileOperator{
+					ErrLoadTxtFile:  nil,
+					ErrGetFileNames: errors.New("error"),
+				},
+				PublicKeyDir: "files/public",
+				Port:         8080,
+				Keys:         []Key{},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Server{
+				FileOperator: tt.fields.FileOperator,
+				PublicKeyDir: tt.fields.PublicKeyDir,
+				Port:         tt.fields.Port,
+				Keys:         tt.fields.Keys,
+			}
+			if err := s.RegistPublicKey(); (err != nil) != tt.wantErr {
+				t.Errorf("Server.RegistPublicKey() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

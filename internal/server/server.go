@@ -15,6 +15,7 @@ import (
 )
 
 const defaultPublicKeyDir = "files/public"
+const defaultTestKeyId = "key-001"
 const ShutdownWait = 15 * time.Second
 
 type FileOperator interface {
@@ -70,7 +71,7 @@ func (s *Server) RegistPublicKey() error {
 		}
 
 		// base64 に変換して登録
-		key := NewEd25519key("key-001", base64.RawURLEncoding.EncodeToString(keyPub))
+		key := NewEd25519key(defaultTestKeyId, base64.RawURLEncoding.EncodeToString(keyPub))
 		s.Keys = append(s.Keys, key)
 		slog.Info("loaded public key", "file_name", p, "key_length", len(key.X))
 	}
@@ -135,9 +136,7 @@ func (s *Server) jwksHandler(w http.ResponseWriter, r *http.Request) {
 	response := Response{
 		Keys: []Key{},
 	}
-	for _, key := range s.Keys {
-		response.Keys = append(response.Keys, key)
-	}
+	response.Keys = append(response.Keys, s.Keys...)
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		slog.Error("failed to encode response", "error", err)

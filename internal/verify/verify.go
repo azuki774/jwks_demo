@@ -31,6 +31,7 @@ type JWSTClient interface {
 func NewVerfier() *Verifier {
 	return &Verifier{
 		trustedPublicKeys: make(map[string]ed25519.PublicKey),
+		JWSTClient:        &http.Client{},
 	}
 }
 

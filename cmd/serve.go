@@ -1,12 +1,14 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
 	"fmt"
+	"log/slog"
 
+	"github.com/jwks_demo/internal/fileoperator"
+	"github.com/jwks_demo/internal/server"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +24,13 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("serve called")
+		f := fileoperator.NewFileOperator()
+		srv := server.NewServer(f, 8080)
+
+		if err := srv.Start(); err != nil {
+			fmt.Println("failed to run server", "error", err)
+			slog.Error("failed to run server", "error", err)
+		}
 	},
 }
 

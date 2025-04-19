@@ -24,3 +24,18 @@ func (f *FileOperator) LoadTxtFile(filePath string) ([]byte, error) {
 	}
 	return b, nil
 }
+
+// GetFileNames returns a list of file names in the specified directory.
+func (f *FileOperator) GetFileNames(dirPath string) ([]string, error) {
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+	var fileNames []string
+	for _, file := range files {
+		if !file.IsDir() {
+			fileNames = append(fileNames, file.Name())
+		}
+	}
+	return fileNames, nil
+}

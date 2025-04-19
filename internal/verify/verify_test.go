@@ -14,41 +14,104 @@ import (
 )
 
 func TestVerifier_verify(t *testing.T) {
+	validKeyBytes, _ := base64.RawURLEncoding.DecodeString("wYDYgYnwhxMfR9hE7isN1rWHubXvEW1EJ_gYirMuxyY")
+	validKid := "key-001"
+
+	jwksResponse := model.Response{
+		Keys: []model.Key{
+			{
+				Kty: "OKP",
+				Crv: "Ed25519",
+				Kid: validKid,
+				Use: "sig",
+				Alg: "EdDSA",
+				X:   base64.RawURLEncoding.EncodeToString(validKeyBytes),
+			},
+			{ // Add another key to test filtering/multiple keys
+				Kty: "RSA", // Different type, should be skipped
+				Kid: "rsa-key",
+				Use: "sig",
+				X:   "hogehoge",
+			},
+			{ // Add an invalid Ed25519 key
+				Kty: "OKP",
+				Crv: "Ed25519",
+				Kid: "invalid-key",
+				Use: "sig",
+				X:   "invalid-base64!", // Invalid base64
+			},
+			{ // Add an Ed25519 key with wrong size
+				Kty: "OKP",
+				Crv: "Ed25519",
+				Kid: "wrong-size-key",
+				Use: "sig",
+				X:   base64.RawURLEncoding.EncodeToString([]byte("short")), // Wrong size
+			},
+		},
+	}
+	jwksJsonBody, _ := json.Marshal(jwksResponse)
+
 	type args struct {
 		jwtString string
 	}
 	tests := []struct {
-		name    string
-		v       *Verifier
-		args    args
-		wantOk  bool
-		wantErr bool
+		name       string
+		v          *Verifier
+		mockClient JWSTClient
+		args       args
+		wantOk     bool
+		wantErr    bool
 	}{
 		{
-			name:    "valid token",
-			v:       &Verifier{},
+			name: "valid token",
+			v:    &Verifier{},
+			mockClient: &MockJWSTClient{
+				Response: NewMockHttpResponse(http.StatusOK, string(jwksJsonBody)),
+				Err:      nil,
+			},
 			args:    args{jwtString: "eyJhbGciOiJFZERTQSIsImtpZCI6ImtleS0wMDEiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJqd2tzX2RlbW9faXNzdWVyIn0.9oN0XeGWUBEiC2XmbwbMUCbN3J3rL3vlUENb8rj-OdZ1dfx7mGDZzH2FgXgDnWYgvmLg0d10kkSBzhjaJ-kCBQ"},
 			wantOk:  true,
 			wantErr: false,
 		},
 		{
-			name:    "invalid token 1",
-			v:       &Verifier{},
+			name: "invalid token 1",
+			v:    &Verifier{},
+			mockClient: &MockJWSTClient{
+				Response: NewMockHttpResponse(http.StatusOK, string(jwksJsonBody)),
+				Err:      nil,
+			},
 			args:    args{jwtString: "eyJhbGciOiJFZERTQSIsImtpZCI6ImtleS0wMDEiLCJ0eXAiOiJKV1Qifa.eyJpc3MiOiJqd2tzX2RlbW9faXNzdWVyIn0.9oN0XeGWUBEiC2XmbwbMUCbN3J3rL3vlUENb8rj-OdZ1dfx7mGDZzH2FgXgDnWYgvmLg0d10kkSBzhjaJ-kCBQ"},
 			wantOk:  false,
 			wantErr: true,
 		},
 		{
-			name:    "invalid token 2",
-			v:       &Verifier{},
+			name: "invalid token 2",
+			v:    &Verifier{},
+			mockClient: &MockJWSTClient{
+				Response: NewMockHttpResponse(http.StatusOK, string(jwksJsonBody)),
+				Err:      nil,
+			},
 			args:    args{jwtString: "invalid"},
+			wantOk:  false,
+			wantErr: true,
+		},
+		{
+			name: "http client error",
+			v:    &Verifier{},
+			mockClient: &MockJWSTClient{
+				Response: nil,
+				Err:      errors.New("network timeout"),
+			},
+			args:    args{jwtString: "eyJhbGciOiJFZERTQSIsImtpZCI6ImtleS0wMDEiLCJ0eXAiOiJKV1Qifa.eyJpc3MiOiJqd2tzX2RlbW9faXNzdWVyIn0.9oN0XeGWUBEiC2XmbwbMUCbN3J3rL3vlUENb8rj-OdZ1dfx7mGDZzH2FgXgDnWYgvmLg0d10kkSBzhjaJ-kCBQ"},
 			wantOk:  false,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := &Verifier{}
+			v := &Verifier{
+				JWSTClient: tt.mockClient,
+			}
 			gotOk, err := v.Verify(tt.args.jwtString)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Verifier.Verify() error = %v, wantErr %v", err, tt.wantErr)

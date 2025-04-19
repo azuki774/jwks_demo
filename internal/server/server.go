@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -72,7 +74,14 @@ func (s *Server) RegistPublicKey() error {
 		}
 
 		// base64 に変換して登録
-		key := NewEd25519key(defaultTestKeyId, base64.RawURLEncoding.EncodeToString(keyPub))
+		// kid = 拡張子なしファイル名
+		kid := getBaseFilename(p)
+		if kid == "" {
+			slog.Error("failed to get base filename. Maybe file_name is hidden filename.", "file_name", p)
+			return fmt.Errorf("failed to get base filename")
+		}
+
+		key := NewEd25519key(kid, base64.RawURLEncoding.EncodeToString(keyPub))
 		s.Keys = append(s.Keys, key)
 		slog.Info("loaded public key", "file_name", p, "key_length", len(key.X))
 	}
@@ -145,4 +154,13 @@ func (s *Server) jwksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+}
+
+func getBaseFilename(path string) string {
+	// Get the filename with extension (e.g., "file.txt")
+	base := filepath.Base(path)
+	// Get the extension (e.g., ".txt")
+	ext := filepath.Ext(base)
+	// Remove the extension from the base filename
+	return strings.TrimSuffix(base, ext)
 }

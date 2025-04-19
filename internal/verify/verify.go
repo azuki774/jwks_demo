@@ -2,13 +2,17 @@ package verify
 
 import (
 	"crypto/ed25519"
-	"crypto/x509"
-	"encoding/pem"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jwks_demo/internal/model"
 )
 
 type MyCustomClaims struct {
@@ -17,6 +21,11 @@ type MyCustomClaims struct {
 
 type Verifier struct {
 	trustedPublicKeys map[string]ed25519.PublicKey // 検証に使う公開鍵を保持するマップ (kid -> PublicKey)
+	JWSTClient        JWSTClient
+}
+
+type JWSTClient interface {
+	Do(req *http.Request) (*http.Response, error)
 }
 
 func NewVerfier() *Verifier {
@@ -31,40 +40,60 @@ func (v *Verifier) LoadKeys() error {
 		v.trustedPublicKeys = make(map[string]ed25519.PublicKey)
 	}
 
-	// 固定の公開鍵 PEM データ
-	const publicKeyPEM = `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAwYDYgYnwhxMfR9hE7isN1rWHubXvEW1EJ/gYirMuxyY=
------END PUBLIC KEY-----`
-	const fixedKid = "key-001"
-	slog.Info("Initializing with fixed public key for kid", "kid", fixedKid)
-
-	// PEMデータをデコード
-	block, _ := pem.Decode([]byte(publicKeyPEM))
-	if block == nil {
-		return errors.New("failed to decode fixed PEM block containing public key")
-	}
-	if block.Type != "PUBLIC KEY" {
-		slog.Warn(fmt.Sprintf("fixed PEM block type is not 'PUBLIC KEY', got '%s'. Attempting to parse anyway.", block.Type))
+	url, _ := url.Parse("http://localhost:8080/.well-known/jwks.json")
+	req := &http.Request{
+		Method: http.MethodGet,
+		URL:    url,
+		Header: http.Header{"Accept": []string{"application/json"}},
+		Body:   nil,
 	}
 
-	// PKIX形式の公開鍵をパース
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	res, err := v.JWSTClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to parse PKIX public key from fixed PEM: %w", err)
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		io.ReadAll(res.Body) // エラー内容は無視しても良い
+		return fmt.Errorf("failed to fetch JWKS: status code %d", res.StatusCode)
 	}
 
-	// ed25519.PublicKey 型へアサーション
-	edPubKey, ok := pub.(ed25519.PublicKey)
-	if !ok {
-		return fmt.Errorf("fixed key is not an ed25519.PublicKey, type is %T", pub)
+	resBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// マップに格納
-	v.trustedPublicKeys[fixedKid] = edPubKey
-	slog.Info(fmt.Sprintf("successfully initialized fixed ed25519.PublicKey for kid: %s (length: %d)", fixedKid, len(edPubKey)))
+	// res.Body を JSON としてパースする
+	var responseJWKS model.Response
+	err = json.Unmarshal(resBody, &responseJWKS)
+	if err != nil {
+		return fmt.Errorf("failed to Unmarshal response body: %w", err)
+	}
 
-	if len(v.trustedPublicKeys) == 0 {
-		slog.Warn("mo public keys loaded for verification. All verifications will fail.")
+	loadedKeys := 0
+	for _, key := range responseJWKS.Keys {
+		// Ed25519 キーのみを処理 (必要に応じて他のタイプもサポート)
+		if key.Kty == "OKP" && key.Crv == "Ed25519" && key.Use == "sig" && key.Kid != "" && key.X != "" {
+			// x パラメータ (base64urlエンコードされた公開鍵) をデコード
+			publicKeyBytes, err := base64.RawURLEncoding.DecodeString(key.X)
+			if err != nil {
+				slog.Warn("Failed to decode base64url public key 'x'", "kid", key.Kid, "error", err)
+				continue // 次のキーへ
+			}
+
+			// バイト数が Ed25519 公開鍵として正しいか確認 (オプションだが推奨)
+			if len(publicKeyBytes) != ed25519.PublicKeySize {
+				slog.Warn("Decoded public key has incorrect size for Ed25519", "kid", key.Kid, "expected_size", ed25519.PublicKeySize, "actual_size", len(publicKeyBytes))
+				continue // 次のキーへ
+			}
+
+			// デコードしたバイト列は ed25519.PublicKey 型として扱える
+			v.trustedPublicKeys[key.Kid] = ed25519.PublicKey(publicKeyBytes)
+			slog.Info("Successfully loaded Ed25519 public key from JWKS", "index", loadedKeys, "kid", key.Kid, "key_length", len(publicKeyBytes))
+			loadedKeys++
+		} else {
+			slog.Info("Skipping key in JWKS", "kid", key.Kid, "kty", key.Kty, "crv", key.Crv, "use", key.Use)
+		}
 	}
 
 	return nil

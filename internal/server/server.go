@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jwks_demo/internal/model"
 )
 
 const defaultPublicKeyDir = "files/public"
@@ -28,7 +29,7 @@ type Server struct {
 	PublicKeyDir string
 	Port         int
 
-	Keys []Key
+	Keys []model.Key
 }
 
 func NewServer(f FileOperator, port int) *Server {
@@ -39,8 +40,8 @@ func NewServer(f FileOperator, port int) *Server {
 	}
 }
 
-func NewEd25519key(kid, x string) Key {
-	return Key{
+func NewEd25519key(kid, x string) model.Key {
+	return model.Key{
 		Kty: "OKP",
 		Crv: "Ed25519",
 		Kid: kid,
@@ -133,8 +134,8 @@ func (s *Server) jwksHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	response := Response{
-		Keys: []Key{},
+	response := model.Response{
+		Keys: []model.Key{},
 	}
 	response.Keys = append(response.Keys, s.Keys...)
 

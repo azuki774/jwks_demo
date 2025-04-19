@@ -4,6 +4,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/jwks_demo/internal/model"
 )
 
 func TesNewEd25519key(t *testing.T) {
@@ -14,7 +16,7 @@ func TesNewEd25519key(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want Key
+		want model.Key
 	}{
 		{
 			name: "valid inputs",
@@ -22,7 +24,7 @@ func TesNewEd25519key(t *testing.T) {
 				kid: "testKid",
 				x:   "eyJhbGciOiJFZERTQSIsImtpZCI6ImtleS0wMDEiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDUwNDA3MzEsImlzcyI6Imp3a3NfZGVtb19pc3N1ZXIiLCJzdWIiOiJqd2tzX2RlbW9fc3ViamVjdCJ9.gFiXfDvSJnmrm5isM9Ny4IPNKpEiiiQwMRqE2AyMSewrEGLg4PoYPy8WzSi9ZVm34xPGEURHHZH5Hd1Tn98pAQ",
 			},
-			want: Key{
+			want: model.Key{
 				Kty: "OKP",
 				Crv: "Ed25519",
 				Kid: "testKid",
@@ -46,7 +48,7 @@ func TestServer_RegistPublicKey(t *testing.T) {
 		FileOperator FileOperator
 		PublicKeyDir string
 		Port         int
-		Keys         []Key
+		Keys         []model.Key
 	}
 	tests := []struct {
 		name    string
@@ -62,7 +64,7 @@ func TestServer_RegistPublicKey(t *testing.T) {
 				},
 				PublicKeyDir: "files/public",
 				Port:         8080,
-				Keys:         []Key{},
+				Keys:         []model.Key{},
 			},
 			wantErr: false,
 		},
@@ -75,7 +77,7 @@ func TestServer_RegistPublicKey(t *testing.T) {
 				},
 				PublicKeyDir: "files/public",
 				Port:         8080,
-				Keys:         []Key{},
+				Keys:         []model.Key{},
 			},
 			wantErr: true,
 		},
@@ -88,7 +90,7 @@ func TestServer_RegistPublicKey(t *testing.T) {
 				},
 				PublicKeyDir: "files/public",
 				Port:         8080,
-				Keys:         []Key{},
+				Keys:         []model.Key{},
 			},
 			wantErr: true,
 		},

@@ -38,13 +38,13 @@ func TestVerifier_verify(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			v := &Verifier{}
-			gotOk, err := v.verify(tt.args.jwtString)
+			gotOk, err := v.Verify(tt.args.jwtString)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Verifier.verify() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Verifier.Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if gotOk != tt.wantOk {
-				t.Errorf("Verifier.verify() = %v, want %v", gotOk, tt.wantOk)
+				t.Errorf("Verifier.Verify() = %v, want %v", gotOk, tt.wantOk)
 			}
 		})
 	}

@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
 
+	"github.com/jwks_demo/internal/verify"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +21,26 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("verify called")
+		// 引数1つ目の値を取得
+		if len(args) < 1 {
+			slog.Info("No arguments provided")
+			fmt.Println("Please provide a JWT string as an argument.")
+			return
+		}
+		jwtString := args[0]
+
+		v := verify.NewVerfier()
+		ok, err := v.Verify(jwtString)
+		if err != nil {
+			fmt.Println("Verification failed:", err)
+			slog.Error("Failed to verify JWT", "error", err)
+			os.Exit(1)
+			return
+		}
+		if !ok {
+			slog.Info("JWT verification failed", "jwtString", jwtString)
+		}
+		slog.Info("JWT verification succeeded", "jwtString", jwtString)
 	},
 }
 

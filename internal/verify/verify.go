@@ -19,9 +19,18 @@ type Verifier struct {
 	trustedPublicKeys map[string]ed25519.PublicKey // 検証に使う公開鍵を保持するマップ (kid -> PublicKey)
 }
 
+func NewVerfier() *Verifier {
+	return &Verifier{
+		trustedPublicKeys: make(map[string]ed25519.PublicKey),
+	}
+}
+
 // テスト用初期化関数
 func (v *Verifier) LoadKeys() error {
-	v.trustedPublicKeys = make(map[string]ed25519.PublicKey)
+	if v.trustedPublicKeys == nil {
+		v.trustedPublicKeys = make(map[string]ed25519.PublicKey)
+	}
+
 	// 固定の公開鍵 PEM データ
 	const publicKeyPEM = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAwYDYgYnwhxMfR9hE7isN1rWHubXvEW1EJ/gYirMuxyY=
@@ -61,7 +70,7 @@ MCowBQYDK2VwAyEAwYDYgYnwhxMfR9hE7isN1rWHubXvEW1EJ/gYirMuxyY=
 	return nil
 }
 
-func (v *Verifier) verify(jwtString string) (ok bool, err error) {
+func (v *Verifier) Verify(jwtString string) (ok bool, err error) {
 	if err := v.LoadKeys(); err != nil {
 		slog.Error("failed to load keys", "error", err)
 		return false, err
@@ -70,7 +79,8 @@ func (v *Verifier) verify(jwtString string) (ok bool, err error) {
 	token, err := jwt.ParseWithClaims(jwtString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// ヘッダーからkidを取得
 		kid, ok := token.Header["kid"].(string)
-		if !ok {
+		if !ok || kid == "" {
+			slog.Warn("kid header missing or not a string")
 			return nil, errors.New("kid header missing or not a string")
 		}
 

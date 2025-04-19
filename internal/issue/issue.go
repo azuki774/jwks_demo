@@ -6,10 +6,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
+const tokenExpirationTime = 3600 // トークンの有効期限 (秒)
 type Issuer struct {
 	FileOperator FileOperator
 }
@@ -59,6 +61,8 @@ func (i *Issuer) Issue(privateKeyPath string, kid string) error {
 
 	claims := jwt.MapClaims{
 		"iss": "jwks_demo_issuer",
+		"sub": "jwks_demo_subject",
+		"exp": time.Now().Add(time.Second * 1 * tokenExpirationTime).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)

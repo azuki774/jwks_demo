@@ -1,0 +1,68 @@
+name: e2e
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - "**"
+  workflow_call:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23.0"
+
+      - name: Build
+        run: make build
+
+      - name: Publish private pem
+        run: |
+          openssl genpkey -algorithm ed25519 -out files/private/test-ci-keyid-1.pem
+          openssl genpkey -algorithm ed25519 -out files/private/test-ci-keyid-2.pem
+          openssl genpkey -algorithm ed25519 -out files/private/test-ci-keyid-3.pem
+          cat files/private/test-ci-keyid-1.pem
+          cat files/private/test-ci-keyid-2.pem
+          cat files/private/test-ci-keyid-3.pem
+
+      - name: Publish public pem
+        run: |
+          openssl pkey -in files/private/test-ci-keyid-1.pem -pubout -out files/public/test-ci-keyid-1.pem
+          openssl pkey -in files/private/test-ci-keyid-2.pem -pubout -out files/public/test-ci-keyid-2.pem
+          echo 'files/public/test-ci-keyid-3.pem is not registed'
+          cat files/public/test-ci-keyid-1.pem
+          cat files/public/test-ci-keyid-2.pem
+
+      - name: Run JWKS
+        run: nohup bin/jwks_demo serve 2>&1 &
+
+      - name: Sign an private key for JWT
+        run: |
+          bin/jwks_demo issue files/private/test-ci-keyid-1.pem test-ci-keyid-1 | tee issue_log_1.log
+          bin/jwks_demo issue files/private/test-ci-keyid-2.pem test-ci-keyid-2 | tee issue_log_2.log
+          bin/jwks_demo issue files/private/test-ci-keyid-3.pem test-ci-keyid-3 | tee issue_log_3.log
+
+      - name: Extract JWT
+        run: |
+          grep 'issued JWT' issue_log_1.log | tail -n 1 | jq .token | tr -d '"' | tee jwt_1
+          grep 'issued JWT' issue_log_2.log | tail -n 1 | jq .token | tr -d '"' | tee jwt_2
+          grep 'issued JWT' issue_log_3.log | tail -n 1 | jq .token | tr -d '"' | tee jwt_3
+
+      - name: Verify JWT (success)
+        run: |
+          key=`cat jwt_1`
+          bin/jwks_demo verify ${key} | tee verify_log_1
+          grep 'JWT verification succeeded' verify_log_1
+
+      - name: Verify JWT (failed)
+        run: |
+          key=`cat jwt_3`
+          bin/jwks_demo verify ${key} | tee verify_log_3
+          grep 'Failed to verify JWT' verify_log_3

@@ -109,3 +109,43 @@ func TestServer_RegistPublicKey(t *testing.T) {
 		})
 	}
 }
+
+func Test_getBaseFilename(t *testing.T) {
+	type args struct {
+		path string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "/path/to/dir/file.txt",
+			args: args{
+				path: "/path/to/dir/file.txt",
+			},
+			want: "file",
+		},
+		{
+			name: "file.txt",
+			args: args{
+				path: "file.txt",
+			},
+			want: "file",
+		},
+		{
+			name: "/path/to/dir/.config",
+			args: args{
+				path: "/path/to/dir/.config",
+			},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getBaseFilename(tt.args.path); got != tt.want {
+				t.Errorf("getBaseFilename() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -19,3 +19,12 @@ type Key struct {
 	Alg string `json:"alg"` // 鍵のアルゴリズム
 	X   string `json:"x"`   // 鍵の値
 }
+
+type TokenResponse struct {
+	// "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImtleS0wMDEiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NjIxODQwMjIsImlzcyI6Imp3a3NfZGVtb19pc3N1ZXIifQ.b...",
+	// "token_type": "Bearer",
+	// "expires_in": 3600
+	Token     string `json:"token"`
+	TokenType string `json:"token_type"`
+	ExpiresIn int    `json:"expires_in"`
+}

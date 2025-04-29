@@ -15,6 +15,8 @@ import (
 	"github.com/jwks_demo/internal/model"
 )
 
+const jwstUrl = "http://localhost:8080/.well-known/jwks.json"
+
 type MyCustomClaims struct {
 	jwt.RegisteredClaims
 }

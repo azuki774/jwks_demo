@@ -31,7 +31,7 @@ to quickly create a Cobra application.`,
 		keyPath := args[0]
 		kid := args[1]
 
-		if err := issuer.Issue(keyPath, kid); err != nil {
+		if err := issuer.IssueFromFile(keyPath, kid); err != nil {
 			slog.Error("failed to issue", "error", err)
 			os.Exit(1)
 		}
